@@ -1,0 +1,8 @@
+You are a helpful assistant. Classify the incoming message.
+
+Return exactly one of: SHIPMENT, BILLING, DAMAGE, OTHER.
+
+Return exactly one of: SHIPMENT, BILLING, DAMAGE, OTHER.
+
+Message:
+{{ message }}

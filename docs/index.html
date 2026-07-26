@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>contextlint — audit what your LLM prompts actually cost</title>
+<meta name="description" content="Free open-source CLI that measures recoverable tokens in your LLM prompts and separates what is provably safe to cut from what needs an eval. No dependencies, no network calls.">
+<meta property="og:title" content="contextlint — audit what your LLM prompts actually cost">
+<meta property="og:description" content="Measures recoverable tokens in your prompts. Doesn't sum overlapping findings like every other tool. MIT licensed, zero dependencies, nothing leaves your machine.">
+<meta property="og:type" content="website">
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel-2:#1c2128; --line:#30363d;
+    --fg:#e6edf3; --fg-dim:#9198a1; --fg-faint:#6e7681;
+    --green:#3fb950; --cyan:#39c5cf; --amber:#d29922; --accent:#58a6ff;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#ffffff; --panel:#f6f8fa; --panel-2:#eef1f4; --line:#d1d9e0;
+      --fg:#1f2328; --fg-dim:#59636e; --fg-faint:#818b98;
+      --green:#1a7f37; --cyan:#0f7c8a; --amber:#9a6700; --accent:#0969da;
+    }
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);
+       font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:800px;margin:0 auto;padding:0 24px}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font-family:var(--mono);font-size:.9em;background:var(--panel-2);
+       padding:.15em .4em;border-radius:4px}
+
+  header{padding:72px 0 48px;text-align:center;border-bottom:1px solid var(--line)}
+  h1{font-family:var(--mono);font-size:clamp(2.1rem,6vw,3rem);margin:0 0 .3em;
+     font-weight:600;letter-spacing:-.02em}
+  .tag{font-size:clamp(1.05rem,2.6vw,1.3rem);color:var(--fg);margin:0 auto 1.4em;
+       max-width:34ch;font-weight:400}
+  .sub{color:var(--fg-dim);font-size:.95rem;margin:0 auto 2em;max-width:52ch}
+  .badges{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:28px}
+  .badge{font-family:var(--mono);font-size:.72rem;letter-spacing:.04em;
+         border:1px solid var(--line);border-radius:20px;padding:4px 12px;color:var(--fg-dim)}
+  .cta{display:inline-flex;align-items:center;gap:8px;background:var(--fg);color:var(--bg);
+       font-weight:600;padding:11px 22px;border-radius:8px;font-size:.95rem}
+  .cta:hover{text-decoration:none;opacity:.88}
+  .cta.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+  .ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+
+  h2{font-size:1.5rem;margin:0 0 .6em;letter-spacing:-.01em}
+  h3{font-size:1.05rem;margin:1.8em 0 .4em}
+  section{padding:56px 0;border-bottom:1px solid var(--line)}
+  section > .wrap > p{color:var(--fg-dim)}
+  section > .wrap > p strong{color:var(--fg)}
+
+  pre{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+      padding:18px 20px;overflow-x:auto;font-family:var(--mono);font-size:.83rem;
+      line-height:1.6;margin:1.2em 0}
+  .g{color:var(--green)} .c{color:var(--cyan)} .a{color:var(--amber)}
+  .d{color:var(--fg-faint)} .b{font-weight:600}
+
+  table{width:100%;border-collapse:collapse;margin:1.4em 0;font-size:.92rem}
+  th,td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line);
+        vertical-align:top}
+  th{font-family:var(--mono);font-size:.74rem;letter-spacing:.05em;
+     text-transform:uppercase;color:var(--fg-faint);font-weight:600}
+  td:first-child{white-space:nowrap;font-family:var(--mono);font-size:.85rem}
+
+  .note{border-left:3px solid var(--line);padding:2px 0 2px 18px;margin:1.5em 0;
+        color:var(--fg-dim);font-size:.94rem}
+  .note.warn{border-left-color:var(--amber)}
+
+  .offer{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+         padding:32px}
+  .price{font-family:var(--mono);font-size:2.4rem;font-weight:600;line-height:1}
+  .price small{font-size:.85rem;color:var(--fg-dim);font-weight:400;
+               letter-spacing:.03em;margin-left:8px}
+  ul.tick{list-style:none;padding:0;margin:1.3em 0}
+  ul.tick li{padding-left:26px;position:relative;margin-bottom:.7em;color:var(--fg-dim)}
+  ul.tick li strong{color:var(--fg)}
+  ul.tick li:before{content:"→";position:absolute;left:0;color:var(--green);
+                    font-family:var(--mono)}
+  .guarantee{background:var(--panel-2);border-radius:8px;padding:14px 18px;
+             margin:1.4em 0;font-size:.94rem}
+
+  footer{padding:44px 0 64px;color:var(--fg-faint);font-size:.86rem;text-align:center}
+  footer a{color:var(--fg-dim)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>contextlint</h1>
+    <p class="tag">Audit what your LLM prompts actually cost.</p>
+    <p class="sub">A free CLI that measures how many tokens you can recover — and tells you
+      honestly which of them are safe to cut and which need an eval first.</p>
+    <div class="badges">
+      <span class="badge">MIT</span>
+      <span class="badge">ZERO DEPENDENCIES</span>
+      <span class="badge">NO NETWORK CALLS</span>
+      <span class="badge">PYTHON 3.8+</span>
+    </div>
+    <div class="ctas">
+      <a class="cta" href="https://github.com/contextlint/contextlint">View on GitHub</a>
+      <a class="cta ghost" href="#audit">Get a deep audit — $19</a>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>Thirty seconds to a number</h2>
+<pre><span class="d">$</span> pip install git+https://github.com/contextlint/contextlint.git
+<span class="d">$</span> contextlint prompts/ --calls 200000 --price-in 0.60
+
+<span class="b">contextlint</span> <span class="d">— LLM context cost audit</span>
+<span class="d">──────────────────────────────────────────────────────────</span>
+
+<span class="b">Corpus</span>
+  Records analysed     8 from 1 source(s)
+  Input tokens         17,724  (avg 2,215/call)
+
+<span class="b">Recoverable</span>
+  <span class="g">Measured</span>         7,256 tok   <span class="d">safe fixes applied and re-counted</span>
+  <span class="c">High</span>             2,558 tok   <span class="d">prompt caching, on top</span>
+  <span class="a">Judgement</span>       12,879 tok   <span class="d">needs an eval to confirm</span>
+
+  <span class="b">55.4% of input tokens</span> are recoverable without
+  touching behaviour.
+
+<span class="b">Cost impact</span>
+    Monthly saving                  <span class="g">$147.21</span>
+    Annualised saving               <span class="g">$1,766.52</span></pre>
+    <p>Point it at a directory of prompt templates or a JSONL request log. It reads
+      OpenAI and Anthropic request shapes plus the LangChain, LiteLLM, Helicone and
+      Langfuse export variants.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Why most of these tools lie to you</h2>
+    <p>Every "prompt optimizer" adds its findings together and reports the total. That number
+      is <strong>wrong</strong>, because the findings overlap. JSON indentation is also
+      whitespace. A duplicated block also contains duplicated sentences. Summing them inflates
+      the headline — sometimes by two times.</p>
+    <p>contextlint doesn't sum. It <strong>applies</strong> every provably-safe transformation to
+      your actual text, re-counts the tokens, and reports the measured difference. Then it hands
+      you the rewrites so you can check its work:</p>
+<pre><span class="d">$</span> contextlint prompts/ --fix ./rewritten   <span class="d"># originals untouched</span>
+<span class="d">$</span> diff -u prompts/agent.md rewritten/agent.md</pre>
+    <p class="note">The same honesty rule applies to money. Without <code>--price-in</code>,
+      contextlint uses a placeholder rate and says so in capital letters every single time. It
+      will not quietly invent a price for your model and then quote you savings based on it.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Three confidence classes, and they mean something</h2>
+    <table>
+      <thead><tr><th>Class</th><th>What it means</th></tr></thead>
+      <tbody>
+        <tr><td class="g">MEASURED</td><td>Tokens removed and re-counted. Cannot change model
+          behaviour — trailing whitespace, blank-line runs, minifiable JSON, verbatim duplicate
+          sentences.</td></tr>
+        <tr><td class="c">HIGH</td><td>A provider feature recovers it, chiefly prompt caching of
+          a stable prefix. No content change required.</td></tr>
+        <tr><td class="a">JUDGEMENT</td><td>The prize is quantified but not claimed. Few-shot
+          trimming, filler removal, over-retrieval. <strong>Run your evals.</strong></td></tr>
+      </tbody>
+    </table>
+    <p>Stripping trailing spaces and deleting half your few-shot examples are not the same kind
+      of act. A tool that reports them as one number is not helping you.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>What it finds</h2>
+    <table>
+      <thead><tr><th>Check</th><th>Finds</th></tr></thead>
+      <tbody>
+        <tr><td>repeated-system-prompt</td><td>A fixed system prompt billed on every single
+          call. Usually the largest line on the bill and the least noticed, because per-call
+          it looks small.</td></tr>
+        <tr><td>cacheable-prefix</td><td>A stable leading block over the ~1024-token caching
+          floor that you're paying full price for every time.</td></tr>
+        <tr><td>pretty-printed-json</td><td><code>indent=2</code> retrieval payloads. Found by
+          balanced-brace scanning, so nested objects can't hide from it.</td></tr>
+        <tr><td>duplicate-blocks</td><td>Paragraphs repeated verbatim across calls, outside the
+          cacheable prefix.</td></tr>
+        <tr><td>restated-instructions</td><td>The same sentence twice in one prompt — what
+          happens when three people edit a prompt over a year.</td></tr>
+        <tr><td>whitespace-bloat</td><td>Trailing spaces, blank-line runs, alignment padding.
+          Never touches fenced code blocks.</td></tr>
+        <tr><td>filler-phrases</td><td>"You are a helpful assistant", "take a deep breath",
+          "I will tip you $200", and other folklore.</td></tr>
+        <tr><td>tool-schema-cost</td><td>Tool schemas re-sent on every call. In an agentic
+          loop this multiplies by steps per task — a 6-step task pays for the whole toolbox
+          six times. Almost nobody measures it, because it lives in code not in the
+          prompt.</td></tr>
+        <tr><td>unused-tool-schemas</td><td>Tools you declare on every call that the model
+          never actually invokes.</td></tr>
+        <tr><td>unbounded-history</td><td>Full conversation history re-sent each turn, so cost
+          grows with the <em>square</em> of the conversation length.</td></tr>
+        <tr><td>io-imbalance</td><td>Huge inputs producing tiny outputs — the signature of
+          over-retrieval, and often the biggest line on a RAG bill.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Keep it fixed</h2>
+    <p>Prompt bloat grows back. Gate it in CI:</p>
+<pre><span class="d">- run:</span> pip install git+https://github.com/contextlint/contextlint.git
+<span class="d">- run:</span> contextlint prompts/ --fail-over-pct 10</pre>
+    <p>Exit <code>0</code> clean, <code>1</code> gate exceeded, <code>2</code> usage error.</p>
+  </div>
+</section>
+
+<section id="audit">
+  <div class="wrap">
+    <div class="offer">
+      <h2 style="margin-bottom:.2em">Deep audit, done for you</h2>
+      <p style="margin-top:0">The CLI is free forever and nothing is held back from it. This is
+        for teams who'd rather have the work done than do it.</p>
+      <div class="price">$19 <small>USD · ONE PROMPT SET · 24 HOURS</small></div>
+      <ul class="tick">
+        <li><strong>Measured before/after token counts</strong> on your real prompts, not
+          estimates.</li>
+        <li><strong>The rewritten prompts as an applyable diff</strong> — you review every
+          change.</li>
+        <li><strong>A prompt-caching plan</strong> specific to your call pattern, including
+          what's currently invalidating your cache.</li>
+        <li><strong>A model-tier comparison</strong> for your actual workload, not a generic
+          benchmark table.</li>
+        <li><strong>The JUDGEMENT calls made</strong> — the things the CLI won't decide for you,
+          decided, with reasoning.</li>
+      </ul>
+      <div class="guarantee">
+        <strong>Under 15% measured safe saving and you pay nothing.</strong> I'd rather tell you
+        your prompts are already tight than charge $19 for a report that says so.
+      </div>
+      <p style="font-size:.9rem;color:var(--fg-dim)">
+        <strong>How it's done:</strong> automated analysis plus AI-assisted review, checked by a
+        human before it goes out. Said up front because you deserve to know what you're buying.<br>
+        <strong>Your data:</strong> send redacted prompts if you prefer — structure is what
+        matters, not your content. Files are deleted after delivery and never used to train
+        anything.<br>
+        <strong>Payment:</strong> a Stripe payment link — any card, no account needed. First-time
+        customers are billed <em>after</em> delivery, so you read the report before you pay
+        anything.<br>
+        <strong>Who you're buying from:</strong> Rayan El Fayoumi, sole proprietor, Ontario, Canada.
+        Consulting is invoiced in my own name; ContextLint is the name of the software, not a
+        company.
+      </p>
+      <p style="margin-bottom:0">
+        <a class="cta" href="mailto:rayanelfayoumi+contextlint@gmail.com?subject=contextlint%20deep%20audit">
+          Email your prompts →</a>
+      </p>
+      <p style="font-size:.87rem;color:var(--fg-faint);margin-bottom:0">
+        Include a redacted prompt set or request log and roughly how many calls a month you make.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Limitations, stated plainly</h2>
+    <p>The default counter is an approximation — it mimics the cl100k pre-tokenizer and models
+      sub-token splits including identifier boundaries, typically landing within about 10%. Every
+      report says which backend produced its numbers. <code>pip install tiktoken</code> alongside it and exact counts are picked up automatically.</p>
+    <p>The caching figure assumes a conservative 50% discount on cached reads; most providers do
+      better. Image and audio tokens aren't counted, only text. And <code>JUDGEMENT</code>
+      findings are prizes, not promises — contextlint cannot run your evals for you.</p>
+    <p class="note">No telemetry, no phone-home, no API key, no upload step. There is no HTTP
+      client anywhere in the codebase and you can verify that in about a minute.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><a href="https://github.com/contextlint/contextlint">GitHub</a> ·
+       <a href="https://github.com/contextlint/contextlint/blob/main/LICENSE">MIT License</a> ·
+       <a href="#audit">Deep audit</a></p>
+    <p>contextlint is an open-source project by Rayan El Fayoumi. MIT licensed.</p>
+  </div>
+</footer>
+
+</body>
+</html>

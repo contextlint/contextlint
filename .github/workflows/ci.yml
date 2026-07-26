@@ -1,0 +1,24 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.8", "3.11", "3.13"]
+        include:
+          # Windows pipes stdout through the ANSI code page, which cannot
+          # encode the rules and the warning sign the reports print. The CLI
+          # tests capture stdout, so this job is what keeps that path honest.
+          - os: windows-latest
+            python-version: "3.13"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install pytest
+      - run: python -m pytest -q
+      - name: self-audit (dogfood)
+        run: python -m contextlint examples/ --format markdown -o self-audit.md
