@@ -20,6 +20,11 @@ classifiers = [
 ]
 dependencies = []
 
+[project.urls]
+Homepage = "https://contextlint.github.io/contextlint/"
+Source = "https://github.com/contextlint/contextlint"
+Issues = "https://github.com/contextlint/contextlint/issues"
+
 [project.optional-dependencies]
 exact = ["tiktoken>=0.5"]
 
