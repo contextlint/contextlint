@@ -197,15 +197,17 @@ diff you can apply, a prompt-caching plan specific to your call pattern, and a m
 comparison for your actual workload. It covers the things the CLI marks `JUDGEMENT` and can't
 decide for you, plus the structural issues that need a human reading your pipeline.
 
-**If the measured safe saving comes in under 15%, you pay nothing.** I'd rather tell you your
-prompts are already tight than take $19 for a report that says so.
+**I check before you pay.** Send the prompt set first and I'll run the measurement on it. If
+there's under 15% of provably safe saving in there, I'll say so and decline the job — I'd rather
+tell you your prompts are already tight than take $19 for a report that says so.
 
 - **How it's done:** automated analysis plus AI-assisted review, checked by a human before it
   goes out. Saying so up front because you deserve to know what you're buying.
 - **Your data:** send redacted prompts if you like — structure is what matters, not your
   content. Files are deleted after delivery and never used to train anything.
-- **Payment:** a Stripe payment link — any card, no account needed, nothing to sign up for.
-  Sent *after* delivery for first-time customers, so you see the report before you pay anything.
+- **Payment:** a PayPal invoice in my own name — payable by card, no PayPal account needed.
+  It goes out only once I've confirmed there's something worth finding, so you never pay for a
+  report I've already told you not to buy.
 - **Who you're buying from:** Rayan El Fayoumi, sole proprietor, Ontario, Canada. Consulting services are
   invoiced in my own name; ContextLint is the name of the software, not a company.
 
